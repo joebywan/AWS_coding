@@ -1,0 +1,140 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  email:
+    Type: String
+    Description: Email address to send backup failure notifications to
+
+Resources:
+  BackupVault:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Type: "AWS::Backup::BackupVault"
+    Properties:
+      BackupVaultName: "MyBackupVault"
+      Notifications:
+        BackupVaultEvents: 
+        - "BACKUP_JOB_FAILED"
+        - "BACKUP_JOB_EXPIRED"
+        SNSTopicArn: !Ref SNSTopic
+
+  SNSTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      TopicName: "BackupFailedNotifications"
+      Subscription:
+        - Endpoint: !Ref email
+          Protocol: "email"
+
+  FailedBackupTopicPolicy:
+    Type: "AWS::SNS::TopicPolicy"
+    Properties:
+      PolicyDocument:
+        Id: SNSPolicy
+        Version: "2012-10-17"
+        Statement:
+          - Sid: Sid1
+            Effect: Allow
+            Principal:
+              Service:
+                - "backup.amazonaws.com"
+            Action: "sns:Publish"
+            Resource: !Ref SNSTopic
+      Topics:
+        - !Ref SNSTopic
+  
+  BackupIamRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Description: "Role for AWS Backup to use"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+              - "backup.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+
+  BackupPlanSevenDays:
+    Type: "AWS::Backup::BackupPlan"
+    Properties:
+      BackupPlan:
+        BackupPlanName: "SevenDayBackupPlan"
+        BackupPlanRule:
+          - CompletionWindowMinutes: 1500
+            RuleName: "SevenDayBackupRule"
+            ScheduleExpression: "cron(0 0 */7 * ? *)"
+            StartWindowMinutes: 1440
+            TargetBackupVault: !Ref BackupVault
+            Lifecycle:
+              DeleteAfterDays: 28
+  
+  BackupSelectionSevenDays:
+    Type: "AWS::Backup::BackupSelection"
+    Properties:
+      BackupPlanId: !Ref BackupPlanSevenDays
+      BackupSelection:
+        IamRoleArn: !GetAtt BackupIamRole.Arn
+        SelectionName: SevenDaySelection
+        ListOfTags:
+          - ConditionType: "STRINGEQUALS"
+            ConditionKey: "backup"
+            ConditionValue: "7"
+
+  BackupPlanFourteenDays:
+    Type: "AWS::Backup::BackupPlan"
+    Properties:
+      BackupPlan:
+        BackupPlanName: "FourteenDayBackupPlan"
+        BackupPlanRule:
+          - CompletionWindowMinutes: 1500
+            RuleName: "FourteenDayBackupRule"
+            ScheduleExpression: "cron(0 0 */14 * ? *)"
+            StartWindowMinutes: 1440
+            TargetBackupVault: !Ref BackupVault
+            Lifecycle:
+              DeleteAfterDays: 56
+  
+  BackupSelectionFourteenDays:
+    Type: "AWS::Backup::BackupSelection"
+    Properties:
+      BackupPlanId: !Ref BackupPlanFourteenDays
+      BackupSelection:
+        IamRoleArn: !GetAtt BackupIamRole.Arn
+        SelectionName: FourteenDaySelection
+        ListOfTags:
+          - ConditionType: "STRINGEQUALS"
+            ConditionKey: "backup"
+            ConditionValue: "14"
+
+  BackupPlanTwentyEightDays:
+    Type: "AWS::Backup::BackupPlan"
+    Properties:
+      BackupPlan:
+        BackupPlanName: "TwentyEightDayBackupPlan"
+        BackupPlanRule:
+          - CompletionWindowMinutes: 1500
+            RuleName: "TwentyEightDayBackupRule"
+            ScheduleExpression: "cron(0 0 */28 * ? *)"
+            StartWindowMinutes: 1440
+            TargetBackupVault: !Ref BackupVault
+            Lifecycle:
+              DeleteAfterDays: 112
+  
+  BackupSelectionTwentyEightDays:
+    Type: "AWS::Backup::BackupSelection"
+    Properties:
+      BackupPlanId: !Ref BackupPlanTwentyEightDays
+      BackupSelection:
+        IamRoleArn: !GetAtt BackupIamRole.Arn
+        SelectionName: TwentyEightDaySelection
+        ListOfTags:
+          - ConditionType: "STRINGEQUALS"
+            ConditionKey: "backup"
+            ConditionValue: "14"
