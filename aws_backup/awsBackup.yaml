@@ -7,9 +7,9 @@ Parameters:
 
 Resources:
   BackupVault:
+    Type: "AWS::Backup::BackupVault"
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
-    Type: "AWS::Backup::BackupVault"
     Properties:
       BackupVaultName: "MyBackupVault"
       Notifications:
@@ -21,6 +21,7 @@ Resources:
   SNSTopic:
     Type: "AWS::SNS::Topic"
     Properties:
+      KmsMasterKeyId: "alias/aws/sns"
       TopicName: "BackupFailedNotifications"
       Subscription:
         - Endpoint: !Ref email
